@@ -80,8 +80,13 @@ namespace GetEventStoreRepository
 
             return aggregate;
         }
+        
+        private static TAggregate ConstructAggregate<TAggregate>()
+        {
+            return (TAggregate)Activator.CreateInstance(typeof(TAggregate), true);
+        }
 
-        public object DeserializeEvent(byte[] metadata, byte[] data)
+        private static object DeserializeEvent(byte[] metadata, byte[] data)
         {
             var eventClrTypeName = JObject.Parse(Encoding.UTF8.GetString(metadata)).Property(EventClrTypeHeader).Value;
             return JsonConvert.DeserializeObject(Encoding.UTF8.GetString(data), Type.GetType((string)eventClrTypeName));
@@ -100,20 +105,20 @@ namespace GetEventStoreRepository
             var newEvents = aggregate.GetUncommittedEvents().Cast<object>().ToList();
             var originalVersion = aggregate.Version - newEvents.Count;
             var expectedVersion = originalVersion == 0 ? -1 : originalVersion;
-            var preparedEvents = PrepareEvents(newEvents, commitHeaders).ToList();
+            var eventsToSave = newEvents.Select(e => ToEventData(Guid.NewGuid(), e, commitHeaders)).ToList();
 
-            if (preparedEvents.Count < WritePageSize)
+            if (eventsToSave.Count < WritePageSize)
             {
-                _eventStoreConnection.AppendToStream(streamName, expectedVersion, preparedEvents);
+                _eventStoreConnection.AppendToStream(streamName, expectedVersion, eventsToSave);
             }
             else
             {
                 var transaction = _eventStoreConnection.StartTransaction(streamName, expectedVersion);
 
                 var position = 0;
-                while (position < preparedEvents.Count)
+                while (position < eventsToSave.Count)
                 {
-                    var pageEvents = preparedEvents.Skip(position).Take(WritePageSize);
+                    var pageEvents = eventsToSave.Skip(position).Take(WritePageSize);
                     transaction.Write(pageEvents);
                     position += WritePageSize;
                 }
@@ -124,17 +129,7 @@ namespace GetEventStoreRepository
             aggregate.ClearUncommittedEvents();
         }
 
-        private static TAggregate ConstructAggregate<TAggregate>()
-        {
-            return (TAggregate)Activator.CreateInstance(typeof(TAggregate), true);
-        }
-
-        private static IEnumerable<EventData> PrepareEvents(IEnumerable<object> events, IDictionary<string, object> commitHeaders)
-        {
-            return events.Select(e => CreateEventData(Guid.NewGuid(), e, commitHeaders));
-        }
-
-        private static EventData CreateEventData(Guid eventId, object evnt, IDictionary<string, object> headers)
+        private static EventData ToEventData(Guid eventId, object evnt, IDictionary<string, object> headers)
         {
             var data = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(evnt, SerializerSettings));
 
