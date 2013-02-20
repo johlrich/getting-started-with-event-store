@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GetEventStoreRepository", "GetEventStoreRepository\GetEventStoreRepository.csproj", "{68568F4B-6637-418E-8C28-C692F811ED42}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GetEventStoreRepository.Tests", "GetEventStoreRepository.Tests\GetEventStoreRepository.Tests.csproj", "{7FCADA91-804F-4F3F-84B4-0FAE9B40C483}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{68568F4B-6637-418E-8C28-C692F811ED42}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{68568F4B-6637-418E-8C28-C692F811ED42}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{68568F4B-6637-418E-8C28-C692F811ED42}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{68568F4B-6637-418E-8C28-C692F811ED42}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7FCADA91-804F-4F3F-84B4-0FAE9B40C483}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7FCADA91-804F-4F3F-84B4-0FAE9B40C483}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7FCADA91-804F-4F3F-84B4-0FAE9B40C483}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7FCADA91-804F-4F3F-84B4-0FAE9B40C483}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
