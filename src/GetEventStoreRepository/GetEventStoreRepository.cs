@@ -41,21 +41,7 @@ namespace GetEventStoreRepository
 
         public TAggregate GetById<TAggregate>(Guid id) where TAggregate : class, IAggregate
         {
-            var streamName = _aggregateIdToStreamName(typeof(TAggregate), id);
-            var aggregate = ConstructAggregate<TAggregate>();
-
-            StreamEventsSlice currentSlice;
-            var nextSliceStart = 1;
-            do
-            {
-                currentSlice = _eventStoreConnection.ReadStreamEventsForward(streamName, nextSliceStart, ReadPageSize, false);
-                nextSliceStart = currentSlice.NextEventNumber;
-
-                foreach (var evnt in currentSlice.Events)
-                    aggregate.ApplyEvent(DeserializeEvent(evnt.OriginalEvent.Metadata, evnt.OriginalEvent.Data));
-            } while (!currentSlice.IsEndOfStream);
-
-            return aggregate;
+            return GetById<TAggregate>(id, int.MaxValue);
         }
 
         public TAggregate GetById<TAggregate>(Guid id, int version) where TAggregate : class, IAggregate
