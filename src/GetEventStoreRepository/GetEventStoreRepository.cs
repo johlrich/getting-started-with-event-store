@@ -5,7 +5,6 @@ using System.Text;
 using CommonDomain;
 using CommonDomain.Persistence;
 using EventStore.ClientAPI;
-using EventStore.ClientAPI.Common.Utils;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -47,6 +46,9 @@ namespace GetEventStoreRepository
 
         public TAggregate GetById<TAggregate>(Guid id, int version) where TAggregate : class, IAggregate
         {
+            if (version <= 0)
+                throw new InvalidOperationException("Cannot get version <= 0");
+
             var streamName = _aggregateIdToStreamName(typeof(TAggregate), id);
             var aggregate = ConstructAggregate<TAggregate>();
 
