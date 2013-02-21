@@ -30,49 +30,48 @@ namespace GetEventStoreRepository.Tests
             return aggregateToSave.Id;
         }
 
+        private EventStoreConnection _connection;
+        private GetEventStoreRepository _repo;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _connection = EventStoreConnection.Create();
+            _connection.Connect(IntegrationTestTcpEndPoint);
+            _repo = new GetEventStoreRepository(_connection);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _connection.Close();
+        }
+
         [Test]
         public void CanGetLatestVersionById()
         {
-            var connection = EventStoreConnection.Create();
-            connection.Connect(IntegrationTestTcpEndPoint);
-            var repo = new GetEventStoreRepository(connection);
+            var savedId = SaveTestAggregateWithoutCustomHeaders(_repo, 3000 /* excludes TestAggregateCreated */);
 
-            var savedId = SaveTestAggregateWithoutCustomHeaders(repo, 3000 /* excludes TestAggregateCreated */);
-
-            var retrieved = repo.GetById<TestAggregate>(savedId);
+            var retrieved = _repo.GetById<TestAggregate>(savedId);
             Assert.AreEqual(3000, retrieved.AppliedEventCount);
-
-            connection.Close();
         }
 
         [Test]
         public void CanGetSpecificVersionFromFirstPageById()
         {
-            var connection = EventStoreConnection.Create();
-            connection.Connect(IntegrationTestTcpEndPoint);
-            var repo = new GetEventStoreRepository(connection);
+            var savedId = SaveTestAggregateWithoutCustomHeaders(_repo, 100 /* excludes TestAggregateCreated */);
 
-            var savedId = SaveTestAggregateWithoutCustomHeaders(repo, 100 /* excludes TestAggregateCreated */);
-
-            var retrieved = repo.GetById<TestAggregate>(savedId, 65);
+            var retrieved = _repo.GetById<TestAggregate>(savedId, 65);
             Assert.AreEqual(64, retrieved.AppliedEventCount);
-
-            connection.Close();
         }
 
         [Test]
         public void CanGetSpecificVersionFromSubsequentPageById()
         {
-            var connection = EventStoreConnection.Create();
-            connection.Connect(IntegrationTestTcpEndPoint);
-            var repo = new GetEventStoreRepository(connection);
+            var savedId = SaveTestAggregateWithoutCustomHeaders(_repo, 500 /* excludes TestAggregateCreated */);
 
-            var savedId = SaveTestAggregateWithoutCustomHeaders(repo, 500 /* excludes TestAggregateCreated */);
-
-            var retrieved = repo.GetById<TestAggregate>(savedId, 126);
+            var retrieved = _repo.GetById<TestAggregate>(savedId, 126);
             Assert.AreEqual(125, retrieved.AppliedEventCount);
-
-            connection.Close();
         }
 
         [Test]
@@ -80,101 +79,94 @@ namespace GetEventStoreRepository.Tests
         {
             const int numberOfEvents = 50000;
 
-            var connection = EventStoreConnection.Create();
-            connection.Connect(IntegrationTestTcpEndPoint);
-            var repo = new GetEventStoreRepository(connection);
+            var aggregateId = SaveTestAggregateWithoutCustomHeaders(_repo, numberOfEvents);
 
-            var aggregateId = SaveTestAggregateWithoutCustomHeaders(repo, numberOfEvents);
-
-            var saved = repo.GetById<TestAggregate>(aggregateId);
+            var saved = _repo.GetById<TestAggregate>(aggregateId);
             Assert.AreEqual(numberOfEvents, saved.AppliedEventCount);
-
-            connection.Close();
         }
 
         [Test]
         public void CanSaveExistingAggregate()
         {
-            var connection = EventStoreConnection.Create();
-            connection.Connect(IntegrationTestTcpEndPoint);
-            var repo = new GetEventStoreRepository(connection);
+            var savedId = SaveTestAggregateWithoutCustomHeaders(_repo, 100 /* excludes TestAggregateCreated */);
 
-            var savedId = SaveTestAggregateWithoutCustomHeaders(repo, 100 /* excludes TestAggregateCreated */);
-
-            var firstSaved = repo.GetById<TestAggregate>(savedId);
+            var firstSaved = _repo.GetById<TestAggregate>(savedId);
             firstSaved.ProduceEvents(50);
-            repo.Save(firstSaved, Guid.NewGuid(), d => { });
+            _repo.Save(firstSaved, Guid.NewGuid(), d => { });
 
-            var secondSaved = repo.GetById<TestAggregate>(savedId);
+            var secondSaved = _repo.GetById<TestAggregate>(savedId);
             Assert.AreEqual(150, secondSaved.AppliedEventCount);
-
-            connection.Close();
         }
 
         [Test]
         public void CanSaveMultiplesOfWritePageSize()
         {
-            var connection = EventStoreConnection.Create();
-            connection.Connect(IntegrationTestTcpEndPoint);
-            var repo = new GetEventStoreRepository(connection);
-
-            var savedId = SaveTestAggregateWithoutCustomHeaders(repo, 1500 /* excludes TestAggregateCreated */);
-            var saved = repo.GetById<TestAggregate>(savedId);
+            var savedId = SaveTestAggregateWithoutCustomHeaders(_repo, 1500 /* excludes TestAggregateCreated */);
+            var saved = _repo.GetById<TestAggregate>(savedId);
 
             Assert.AreEqual(1500, saved.AppliedEventCount);
-
-            connection.Close();
         }
 
         [Test]
         public void ClearsEventsFromAggregateOnceCommitted()
         {
-            var connection = EventStoreConnection.Create();
-            connection.Connect(IntegrationTestTcpEndPoint);
-            var repo = new GetEventStoreRepository(connection);
-
             var aggregateToSave = new TestAggregate(Guid.NewGuid());
             aggregateToSave.ProduceEvents(10);
-            repo.Save(aggregateToSave, Guid.NewGuid(), d => { });
+            _repo.Save(aggregateToSave, Guid.NewGuid(), d => { });
 
             Assert.AreEqual(0, ((IAggregate) aggregateToSave).GetUncommittedEvents().Count);
         }
 
         [Test]
+        public void ThrowsOnRequestingSpecificVersionHigherThanExists()
+        {
+            var aggregateId = SaveTestAggregateWithoutCustomHeaders(_repo, 10);
+
+            Assert.Throws<AggregateVersionException>(() => _repo.GetById<TestAggregate>(aggregateId, 50));
+        }
+
+        [Test]
         public void GetsEventsFromCorrectStreams()
         {
-            var connection = EventStoreConnection.Create();
-            connection.Connect(IntegrationTestTcpEndPoint);
-            var repo = new GetEventStoreRepository(connection);
+            var aggregate1Id = SaveTestAggregateWithoutCustomHeaders(_repo, 100);
+            var aggregate2Id = SaveTestAggregateWithoutCustomHeaders(_repo, 50);
 
-            var aggregate1Id = SaveTestAggregateWithoutCustomHeaders(repo, 100);
-            var aggregate2Id = SaveTestAggregateWithoutCustomHeaders(repo, 50);
-
-            var firstSaved = repo.GetById<TestAggregate>(aggregate1Id);
+            var firstSaved = _repo.GetById<TestAggregate>(aggregate1Id);
             Assert.AreEqual(100, firstSaved.AppliedEventCount);
 
-            var secondSaved = repo.GetById<TestAggregate>(aggregate2Id);
+            var secondSaved = _repo.GetById<TestAggregate>(aggregate2Id);
             Assert.AreEqual(50, secondSaved.AppliedEventCount);
+        }
 
-            connection.Close();
+        [Test]
+        public void ThrowsOnGetNonExistentAggregate()
+        {
+            Assert.Throws<AggregateNotFoundException>(() => _repo.GetById<TestAggregate>(Guid.NewGuid()));
+        }
+
+        [Test]
+        public void ThrowsOnGetDeletedAggregate()
+        {
+            var aggregateId = SaveTestAggregateWithoutCustomHeaders(_repo, 10);
+
+            var streamName = string.Format("testAggregate-{0}", aggregateId);
+            _connection.DeleteStream(streamName, 11);
+
+            Assert.Throws<AggregateDeletedException>(() => _repo.GetById<TestAggregate>(aggregateId));
         }
 
         [Test]
         public void SavesCommitHeadersOnEachEvent()
         {
-            var connection = EventStoreConnection.Create();
-            connection.Connect(IntegrationTestTcpEndPoint);
-            var repo = new GetEventStoreRepository(connection);
-
             var commitId = Guid.NewGuid();
             var aggregateToSave = new TestAggregate(Guid.NewGuid());
             aggregateToSave.ProduceEvents(20);
-            repo.Save(aggregateToSave, commitId, d => {
+            _repo.Save(aggregateToSave, commitId, d => {
                 d.Add("CustomHeader1", "CustomValue1");
                 d.Add("CustomHeader2", "CustomValue2");
             });
 
-            var read = connection.ReadStreamEventsForward(string.Format("aggregate-{0}", aggregateToSave.Id), 1, 20, false);
+            var read = _connection.ReadStreamEventsForward(string.Format("aggregate-{0}", aggregateToSave.Id), 1, 20, false);
             foreach (var serializedEvent in read.Events)
             {
                 var parsedMetadata = JObject.Parse(Encoding.UTF8.GetString(serializedEvent.OriginalEvent.Metadata));
@@ -187,8 +179,6 @@ namespace GetEventStoreRepository.Tests
                 var deserializedCustomHeader2 = parsedMetadata.Property("CustomHeader2").Value.ToObject<string>();
                 Assert.AreEqual("CustomValue2", deserializedCustomHeader2);
             }
-
-            connection.Close();
         }
     }
 }

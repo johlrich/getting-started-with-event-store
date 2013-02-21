@@ -30,6 +30,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="AggregateDeletedException.cs" />
+    <Compile Include="AggregateNotFoundException.cs" />
+    <Compile Include="AggregateVersionException.cs" />
     <Compile Include="GetEventStoreRepository.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

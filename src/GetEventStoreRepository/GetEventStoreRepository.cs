@@ -5,6 +5,7 @@ using System.Text;
 using CommonDomain;
 using CommonDomain.Persistence;
 using EventStore.ClientAPI;
+using EventStore.ClientAPI.Common.Utils;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -58,11 +59,21 @@ namespace GetEventStoreRepository
                                     : version - sliceStart + 1;
 
                 currentSlice = _eventStoreConnection.ReadStreamEventsForward(streamName, sliceStart, sliceCount, false);
+
+                if (currentSlice.Status == SliceReadStatus.StreamNotFound)
+                    throw new AggregateNotFoundException(id, typeof (TAggregate));
+                
+                if (currentSlice.Status == SliceReadStatus.StreamDeleted)
+                    throw new AggregateDeletedException(id, typeof (TAggregate));
+                
                 sliceStart = currentSlice.NextEventNumber;
 
                 foreach (var evnt in currentSlice.Events)
                     aggregate.ApplyEvent(DeserializeEvent(evnt.OriginalEvent.Metadata, evnt.OriginalEvent.Data));
-            } while (version > currentSlice.NextEventNumber && !currentSlice.IsEndOfStream);
+            } while (version >= currentSlice.NextEventNumber && !currentSlice.IsEndOfStream);
+
+            if (aggregate.Version != version && version < Int32.MaxValue)
+                throw new AggregateVersionException(id, typeof (TAggregate), aggregate.Version, version);                
 
             return aggregate;
         }
