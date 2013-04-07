@@ -29,7 +29,7 @@ namespace GetEventStoreRepository
         }
 
         public GetEventStoreRepository(EventStoreConnection eventStoreConnection)
-            : this(eventStoreConnection, (t, g) => string.Format("{0}-{1}", char.ToLower(t.Name[0]) + t.Name.Substring(1), g))
+            : this(eventStoreConnection, (t, g) => string.Format("{0}-{1}", char.ToLower(t.Name[0]) + t.Name.Substring(1), g.ToString("N")))
         {
         }
 
